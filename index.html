@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Streaming Player</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="site-title">VideoStream Player</h1>
+                <nav class="nav-tabs">
+                    <button class="nav-tab active" data-section="home">Home</button>
+                    <button class="nav-tab" data-section="library">Library</button>
+                    <button class="nav-tab" data-section="player">Player</button>
+                    <button class="nav-tab" data-section="settings">Settings</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Hero Section -->
+        <section class="hero-section content-section" id="heroSection">
+            <div class="hero-content">
+                <h1 class="hero-title">Your Personal Video Library</h1>
+                <p class="hero-subtitle">Select a folder and start watching your favorite videos</p>
+                <button id="selectFolderBtn" class="hero-btn">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                    </svg>
+                    Select Folder
+                </button>
+                <button id="selectSeasonBtn" class="hero-btn secondary">
+                    <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z"/>
+                    </svg>
+                    TV Show/Seasons
+                </button>
+            </div>
+        </section>
+
+        <!-- Now Playing Section -->
+        <section class="now-playing-section content-section" id="videoPlayerSection" style="display: none;">
+            <div class="container">
+                <h2>Now Playing</h2>
+            </div>
+        </section>
+
+        <!-- Video Player Section -->
+        <section class="player-section" id="playerSection" style="display: none;">
+            <div class="container">
+                <div class="player-container">
+                    <div class="video-wrapper">
+                        <video id="videoPlayer" class="video-player" controls>
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="video-controls">
+                            <button id="prevBtn" class="control-btn" title="Previous">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                                </svg>
+                            </button>
+                            <button id="playPauseBtn" class="control-btn" title="Play/Pause">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path id="playPauseIcon" d="M8 5v14l11-7z"/>
+                                </svg>
+                            </button>
+                            <button id="nextBtn" class="control-btn" title="Next">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                                </svg>
+                            </button>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="videoProgress"></div>
+                                </div>
+                                <div class="time-display">
+                                    <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+                                </div>
+                            </div>
+                            <button id="fullscreenBtn" class="control-btn" title="Fullscreen">
+                                <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                                </svg>
+                            </button>
+                            <div class="loop-toggle">
+                                <label class="loop-label">
+                                    <input type="checkbox" id="loopToggle" checked>
+                                    <span class="loop-text">Auto-play</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-info">
+                        <h3 id="currentVideoTitle" class="video-title"></h3>
+                        <p id="currentVideoMeta" class="video-meta"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Video Library Section -->
+        <section class="library-section content-section" id="librarySection" style="display: none;">
+            <div class="container">
+                <div class="library-header">
+                    <h2>Video Library</h2>
+                    <div class="library-controls">
+                        <button id="gridViewBtn" class="view-btn active">Grid</button>
+                        <button id="listViewBtn" class="view-btn">List</button>
+                    </div>
+                </div>
+                <div class="video-grid" id="videoGrid"></div>
+                <div class="video-list" id="videoList" style="display: none;"></div>
+            </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section class="settings-section content-section" id="settingsSection" style="display: none;">
+            <div class="container">
+                <h2>Settings</h2>
+                <div class="settings-grid">
+                    <div class="setting-card">
+                        <h3>Playback</h3>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="autoPlaySetting" checked>
+                                Auto-play next video
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="loopSetting" checked>
+                                Loop playlist
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-card">
+                        <h3>Display</h3>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="darkModeSetting">
+                                Dark mode
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>VideoStream Player</h3>
+                    <p>Your personal video library manager</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Features</h4>
+                    <ul>
+                        <li>Folder-based video organization</li>
+                        <li>Auto-play and loop functionality</li>
+                        <li>Keyboard navigation</li>
+                        <li>Responsive design</li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Controls</h4>
+                    <ul>
+                        <li>Space: Play/Pause</li>
+                        <li>← → : Previous/Next</li>
+                        <li>F: Fullscreen</li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p>Built with ❤️ for video enthusiasts</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 VideoStream Player. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar" style="display: none;">
+        <span id="statusText"></span>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

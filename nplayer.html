@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #141414;
+            color: #ffffff;
+            line-height: 1.4;
+            overflow-x: hidden;
+        }
+        
+        /* Netflix Header */
+        .netflix-header {
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 50%, transparent 100%);
+            padding: 20px 50px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
+        
+        .netflix-logo {
+            color: #e50914;
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-decoration: none;
+            letter-spacing: -2px;
+        }
+        
+        .header-spacer {
+            height: 100px;
+        }
+        
+        /* Main Container */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 50px;
+        }
+        
+        /* Hero Section - Video Player */
+        .hero-section {
+            position: relative;
+            height: 70vh;
+            min-height: 500px;
+            margin-bottom: 40px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        
+        .video-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .video-player {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+        }
+        
+        .video-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+            padding: 40px;
+            color: white;
+        }
+        
+        .video-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .video-info {
+            font-size: 1.2rem;
+            color: #d2d2d2;
+            margin-bottom: 20px;
+        }
+        
+        /* Netflix Buttons */
+        .netflix-button {
+            background: #e50914;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .netflix-button:hover {
+            background: #f40612;
+            transform: scale(1.05);
+        }
+        
+        .netflix-button.secondary {
+            background: rgba(109, 109, 110, 0.7);
+            color: white;
+        }
+        
+        .netflix-button.secondary:hover {
+            background: rgba(109, 109, 110, 0.9);
+        }
+        
+        .netflix-button:disabled {
+            background: #404040;
+            color: #808080;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            background: rgba(0,0,0,0.8);
+            padding: 15px 40px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border-left: 4px solid #e50914;
+        }
+        
+        .status-text {
+            font-size: 1.1rem;
+            color: #d2d2d2;
+        }
+        
+        /* Playlist Section */
+        .playlist-section {
+            margin-top: 40px;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #e5e5e5;
+        }
+        
+        .playlist-container {
+            background: rgba(0,0,0,0.4);
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .playlist-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .playlist-item {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .playlist-item:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: #e50914;
+            transform: scale(1.02);
+        }
+        
+        .playlist-item.active {
+            background: rgba(229, 9, 20, 0.2);
+            border-color: #e50914;
+        }
+        
+        .playlist-item.active::before {
+            content: "▶";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #e50914;
+            font-size: 1.2rem;
+        }
+        
+        .video-name {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            padding-left: 20px;
+        }
+        
+        .video-number {
+            font-size: 0.9rem;
+            color: #808080;
+            padding-left: 20px;
+        }
+        
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #e50914;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Scrollbar Styling */
+        .playlist-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .playlist-container::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+        }
+        
+        .playlist-container::-webkit-scrollbar-thumb {
+            background: #e50914;
+            border-radius: 4px;
+        }
+        
+        .playlist-container::-webkit-scrollbar-thumb:hover {
+            background: #f40612;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .netflix-header {
+                padding: 15px 20px;
+            }
+            
+            .main-container {
+                padding: 0 20px;
+            }
+            
+            .hero-section {
+                height: 50vh;
+                min-height: 300px;
+            }
+            
+            .video-title {
+                font-size: 1.8rem;
+            }
+            
+            .playlist-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .netflix-button {
+                font-size: 0.9rem;
+                padding: 10px 20px;
+            }
+        }
+        
+        /* Controls Row */
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        /* Hidden class for elements */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Netflix Header -->
+    <header class="netflix-header">
+        <div class="netflix-logo">NETFLIX</div>
+    </header>
+    
+    <div class="header-spacer"></div>
+    
+    <!-- Main Container -->
+    <div class="main-container">
+        
+        <!-- Hero Section with Video Player -->
+        <div class="hero-section">
+            <div class="video-container">
+                <video id="videoPlayer" class="video-player" controls></video>
+                <div class="video-overlay">
+                    <h1 id="videoTitle" class="video-title">Select a folder to start watching</h1>
+                    <p id="videoInfo" class="video-info">Choose your video folder and enjoy seamless playback</p>
+                    <div class="controls-row">
+                        <button id="selectFolderBtn" class="netflix-button">📁 Select Folder</button>
+                        <button id="playBtn" class="netflix-button" disabled>▶ Play</button>
+                        <button id="pauseBtn" class="netflix-button secondary" disabled>⏸ Pause</button>
+                        <button id="prevBtn" class="netflix-button secondary" disabled>⏮ Previous</button>
+                        <button id="nextBtn" class="netflix-button secondary" disabled>⏭ Next</button>
+                        <button id="loopBtn" class="netflix-button secondary" disabled>🔁 Loop: ON</button>
+                        <button id="fullscreenBtn" class="netflix-button secondary" disabled>⛶ Fullscreen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div id="statusText" class="status-text">🎬 Ready to play videos - Select a folder to begin</div>
+        </div>
+        
+        <!-- Playlist Section -->
+        <div class="playlist-section">
+            <h2 class="section-title">📺 Your Video Collection</h2>
+            <div class="playlist-container">
+                <div id="videoList" class="playlist-grid">
+                    <div style="text-align: center; padding: 40px; color: #808080;">
+                        <h3>No videos loaded yet</h3>
+                        <p>Click "Select Folder" to load your videos</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class NetflixVideoPlayer {
+            constructor() {
+                this.videoPlayer = document.getElementById('videoPlayer');
+                this.videoTitle = document.getElementById('videoTitle');
+                this.videoInfo = document.getElementById('videoInfo');
+                this.statusText = document.getElementById('statusText');
+                this.videoList = document.getElementById('videoList');
+                
+                // Buttons
+                this.selectFolderBtn = document.getElementById('selectFolderBtn');
+                this.playBtn = document.getElementById('playBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.loopBtn = document.getElementById('loopBtn');
+                this.fullscreenBtn = document.getElementById('fullscreenBtn');
+                
+                // State
+                this.videoFiles = [];
+                this.currentVideoIndex = 0;
+                this.isLooping = true;
+                this.currentVideoUrl = null;
+                
+                this.initEventListeners();
+            }
+            
+            initEventListeners() {
+                this.selectFolderBtn.addEventListener('click', () => this.selectFolder());
+                this.playBtn.addEventListener('click', () => this.play());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.prevBtn.addEventListener('click', () => this.previous());
+                this.nextBtn.addEventListener('click', () => this.next());
+                this.loopBtn.addEventListener('click', () => this.toggleLoop());
+                this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+                
+                this.videoPlayer.addEventListener('ended', () => this.handleVideoEnded());
+                this.videoPlayer.addEventListener('error', (e) => this.handleVideoError(e));
+                this.videoPlayer.addEventListener('loadeddata', () => this.checkVideoDisplay());
+                this.videoPlayer.addEventListener('play', () => this.updateStatus('▶ Playing...'));
+                this.videoPlayer.addEventListener('pause', () => this.updateStatus('⏸ Paused'));
+            }
+            
+            isVideoFile(filename) {
+                const videoExtensions = [
+                    '.mp4', '.webm', '.ogg', '.mov', '.avi', 
+                    '.mkv', '.flv', '.wmv', '.m4v', '.3gp', '.mpg', '.mpeg'
+                ];
+                
+                const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+                return videoExtensions.includes(ext);
+            }
+            
+            getBrowserSupportedFormats() {
+                const video = document.createElement('video');
+                return {
+                    'mp4': video.canPlayType('video/mp4') === 'probably' || video.canPlayType('video/mp4') === 'maybe',
+                    'webm': video.canPlayType('video/webm') === 'probably' || video.canPlayType('video/webm') === 'maybe',
+                    'ogg': video.canPlayType('video/ogg') === 'probably' || video.canPlayType('video/ogg') === 'maybe',
+                    'mov': video.canPlayType('video/quicktime') === 'probably' || video.canPlayType('video/quicktime') === 'maybe',
+                    'avi': video.canPlayType('video/x-msvideo') === 'probably' || video.canPlayType('video/x-msvideo') === 'maybe',
+                    'mkv': video.canPlayType('video/x-matroska') === 'probably' || video.canPlayType('video/x-matroska') === 'maybe',
+                    'flv': video.canPlayType('video/x-flv') === 'probably' || video.canPlayType('video/x-flv') === 'maybe',
+                    'wmv': video.canPlayType('video/x-ms-wmv') === 'probably' || video.canPlayType('video/x-ms-wmv') === 'maybe'
+                };
+            }
+            
+            isBrowserSupported(filename) {
+                const ext = filename.toLowerCase().substring(filename.lastIndexOf('.') + 1);
+                const supported = this.getBrowserSupportedFormats();
+                return supported[ext] || false;
+            }
+            
+            async selectFolder() {
+                this.updateStatus('📁 Opening folder selector...');
+                
+                try {
+                    const dirHandle = await window.showDirectoryPicker();
+                    this.videoFiles = [];
+                    
+                    this.updateStatus('🔍 Scanning for videos...');
+                    
+                    for await (const entry of dirHandle.values()) {
+                        if (entry.kind === 'file') {
+                            const file = await entry.getFile();
+                            // Check both MIME type and file extension
+                            if (file.type.startsWith('video/') || this.isVideoFile(file.name)) {
+                                this.videoFiles.push({
+                                    name: file.name,
+                                    file: file
+                                });
+                            }
+                        }
+                    }
+                    
+                    if (this.videoFiles.length === 0) {
+                        this.updateStatus('❌ No video files found in selected folder');
+                        return;
+                    }
+                    
+                    // Sort videos alphabetically
+                    this.videoFiles.sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    this.updateStatus(`✅ Found ${this.videoFiles.length} videos`);
+                    this.updateVideoList();
+                    this.enableControls();
+                    
+                    // Auto-play first video
+                    if (this.videoFiles.length > 0) {
+                        await this.playVideo(0);
+                    }
+                    
+                } catch (error) {
+                    this.updateStatus('❌ Error selecting folder: ' + error.message);
+                }
+            }
+            
+            updateVideoList() {
+                if (this.videoFiles.length === 0) {
+                    this.videoList.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #808080;">
+                            <h3>No videos loaded yet</h3>
+                            <p>Click "Select Folder" to load your videos</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                this.videoList.innerHTML = '';
+                
+                this.videoFiles.forEach((video, index) => {
+                    const item = document.createElement('div');
+                    const isSupported = this.isBrowserSupported(video.name);
+                    const ext = video.name.toLowerCase().substring(video.name.lastIndexOf('.') + 1);
+                    
+                    item.className = 'playlist-item';
+                    item.innerHTML = `
+                        <div class="video-name">${video.name}</div>
+                        <div class="video-number">
+                            Episode ${index + 1} of ${this.videoFiles.length}
+                            <span style="color: ${isSupported ? '#4CAF50' : '#f44336'}; margin-left: 10px;">
+                                ${isSupported ? '✅' : '⚠️'} .${ext}
+                            </span>
+                        </div>
+                    `;
+                    
+                    item.addEventListener('click', () => this.playVideo(index));
+                    
+                    if (index === this.currentVideoIndex) {
+                        item.classList.add('active');
+                    }
+                    
+                    this.videoList.appendChild(item);
+                });
+            }
+            
+            async playVideo(index) {
+                if (index < 0 || index >= this.videoFiles.length) {
+                    return;
+                }
+                
+                this.currentVideoIndex = index;
+                const video = this.videoFiles[index];
+                
+                // Check if format is browser-supported
+                if (!this.isBrowserSupported(video.name)) {
+                    const ext = video.name.toLowerCase().substring(video.name.lastIndexOf('.') + 1);
+                    this.updateStatus(`❌ Unsupported format: .${ext} - Convert to MP4 for best compatibility`);
+                    this.videoTitle.textContent = `Format not supported: ${video.name}`;
+                    this.videoInfo.textContent = `This .${ext} format may not play properly in your browser`;
+                    
+                    // Try to play anyway (might work with some codecs)
+                    console.warn(`Attempting to play unsupported format: ${video.name}`);
+                }
+                
+                try {
+                    this.updateStatus(`🎬 Loading: ${video.name}...`);
+                    
+                    // Clean up previous video URL
+                    if (this.currentVideoUrl) {
+                        URL.revokeObjectURL(this.currentVideoUrl);
+                    }
+                    
+                    // Create new URL for the video
+                    this.currentVideoUrl = URL.createObjectURL(video.file);
+                    this.videoPlayer.src = this.currentVideoUrl;
+                    
+                    // Update UI
+                    this.videoTitle.textContent = video.name;
+                    this.videoInfo.textContent = `Episode ${index + 1} of ${this.videoFiles.length} • ${this.formatFileSize(video.file.size)}`;
+                    
+                    this.updateVideoList();
+                    this.updateStatus(`▶ Now playing: ${video.name}`);
+                    
+                    // Auto-play
+                    await this.videoPlayer.play();
+                    
+                } catch (error) {
+                    const ext = video.name.toLowerCase().substring(video.name.lastIndexOf('.') + 1);
+                    this.updateStatus(`❌ Cannot play ${ext} format - Convert to MP4 for best results`);
+                    console.error('Video playback error:', error);
+                }
+            }
+            
+            play() {
+                if (this.videoFiles.length > 0) {
+                    this.videoPlayer.play();
+                }
+            }
+            
+            pause() {
+                this.videoPlayer.pause();
+            }
+            
+            next() {
+                if (this.videoFiles.length === 0) return;
+                
+                const nextIndex = (this.currentVideoIndex + 1) % this.videoFiles.length;
+                this.playVideo(nextIndex);
+            }
+            
+            previous() {
+                if (this.videoFiles.length === 0) return;
+                
+                const prevIndex = this.currentVideoIndex === 0 ? 
+                    this.videoFiles.length - 1 : this.currentVideoIndex - 1;
+                this.playVideo(prevIndex);
+            }
+            
+            toggleLoop() {
+                this.isLooping = !this.isLooping;
+                this.loopBtn.innerHTML = this.isLooping ? '🔁 Loop: ON' : '🔁 Loop: OFF';
+                this.updateStatus(this.isLooping ? '🔁 Loop enabled' : '🔁 Loop disabled');
+            }
+            
+            handleVideoEnded() {
+                if (this.isLooping) {
+                    this.next();
+                } else {
+                    this.updateStatus('✅ Video ended');
+                }
+            }
+            
+            handleVideoError(error) {
+                this.updateStatus(`❌ Video error: ${error.message}`);
+            }
+            
+            handleVideoLoaded() {
+                this.updateStatus('✅ Video loaded successfully');
+            }
+            
+            enableControls() {
+                this.playBtn.disabled = false;
+                this.pauseBtn.disabled = false;
+                this.prevBtn.disabled = false;
+                this.nextBtn.disabled = false;
+                this.loopBtn.disabled = false;
+                this.fullscreenBtn.disabled = false;
+            }
+            
+            toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    this.videoPlayer.requestFullscreen().catch(err => {
+                        this.updateStatus(`❌ Error enabling fullscreen: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+            
+            checkVideoDisplay() {
+                this.updateStatus('✅ Video loaded successfully');
+                
+                // Check if video has visual content
+                setTimeout(() => {
+                    if (this.videoPlayer.videoWidth === 0 || this.videoPlayer.videoHeight === 0) {
+                        const currentVideo = this.videoFiles[this.currentVideoIndex];
+                        const ext = currentVideo.name.toLowerCase().substring(currentVideo.name.lastIndexOf('.') + 1);
+                        this.updateStatus(`⚠️ Video has no visual content - ${ext} format may need conversion to MP4`);
+                        this.videoInfo.textContent = `This .${ext} format has audio but no video - convert to MP4 for full compatibility`;
+                        console.warn('Video dimensions are 0x0 - likely audio-only or unsupported codec');
+                    } else {
+                        this.videoInfo.textContent = `Episode ${this.currentVideoIndex + 1} of ${this.videoFiles.length} • ${this.formatFileSize(this.videoFiles[this.currentVideoIndex].file.size)} • ${this.videoPlayer.videoWidth}x${this.videoPlayer.videoHeight}`;
+                    }
+                }, 1000);
+            }
+            
+            updateStatus(message) {
+                this.statusText.innerHTML = message;
+                console.log(message);
+            }
+            
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+        }
+        
+        // Initialize the player when the page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new NetflixVideoPlayer();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #e50914;
+            margin-bottom: 10px;
+        }
+        
+        .video-container {
+            background-color: #000;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .video-player {
+            width: 100%;
+            height: 500px;
+            background-color: #000;
+            border-radius: 4px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background-color: #e50914;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background-color: #f40612;
+        }
+        
+        .btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        .video-info {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .status {
+            background-color: #2a2a2a;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        
+        .playlist {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .playlist-item {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #3a3a3a;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .playlist-item:hover {
+            background-color: #4a4a4a;
+        }
+        
+        .playlist-item.active {
+            background-color: #e50914;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Simple Video Player</h1>
+            <p>Select a folder and play your videos</p>
+        </div>
+        
+        <div class="controls">
+            <button id="selectFolderBtn" class="btn">Select Folder</button>
+            <button id="playBtn" class="btn" disabled>Play</button>
+            <button id="pauseBtn" class="btn" disabled>Pause</button>
+            <button id="nextBtn" class="btn" disabled>Next</button>
+                    <button id="prevBtn" class="btn" disabled>Previous</button>
+                    <button id="loopBtn" class="btn" disabled>Loop: ON</button>
+                    <button id="fullscreenBtn" class="btn" disabled>Fullscreen</button>
+        </div>
+        
+        <div class="video-container">
+            <video id="videoPlayer" class="video-player" controls></video>
+        </div>
+        
+        <div class="video-info">
+            <div id="currentVideo">No video selected</div>
+            <div id="videoCount"></div>
+            <div id="status" class="status">Ready to play videos</div>
+        </div>
+        
+        <div class="playlist">
+            <h3>Playlist</h3>
+            <div id="videoList">No videos loaded</div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.4/dist/ffmpeg.min.js"></script>
+    <script>
+        class SimpleVideoPlayer {
+            constructor() {
+                this.videoPlayer = document.getElementById('videoPlayer');
+                this.selectFolderBtn = document.getElementById('selectFolderBtn');
+                this.playBtn = document.getElementById('playBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.nextBtn = document.getElementById('nextBtn');
+                this.prevBtn = document.getElementById('prevBtn');
+                this.loopBtn = document.getElementById('loopBtn');
+                this.fullscreenBtn = document.getElementById('fullscreenBtn');
+                this.currentVideoDiv = document.getElementById('currentVideo');
+                this.videoCountDiv = document.getElementById('videoCount');
+                this.statusDiv = document.getElementById('status');
+                this.videoListDiv = document.getElementById('videoList');
+                
+                this.videoFiles = [];
+                this.currentVideoIndex = 0;
+                this.isLooping = true;
+                this.currentVideoUrl = null;
+                this.ffmpeg = null;
+                
+                this.initEventListeners();
+            }
+            
+            initEventListeners() {
+                this.selectFolderBtn.addEventListener('click', () => this.selectFolder());
+                this.playBtn.addEventListener('click', () => this.play());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.nextBtn.addEventListener('click', () => this.next());
+                this.prevBtn.addEventListener('click', () => this.prev());
+                this.loopBtn.addEventListener('click', () => this.toggleLoop());
+                this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
+                
+                this.videoPlayer.addEventListener('ended', () => this.handleVideoEnded());
+                this.videoPlayer.addEventListener('error', (e) => this.handleVideoError(e));
+                this.videoPlayer.addEventListener('loadeddata', () => this.checkVideoDisplay());
+            }
+            
+            isVideoFile(filename) {
+                const videoExtensions = [
+                    '.mp4', '.webm', '.ogg', '.mov', '.avi', 
+                    '.mkv', '.flv', '.wmv', '.m4v', '.3gp', '.mpg', '.mpeg'
+                ];
+                
+                const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+                return videoExtensions.includes(ext);
+            }
+            
+            getBrowserSupportedFormats() {
+                const video = document.createElement('video');
+                return {
+                    'mp4': video.canPlayType('video/mp4') === 'probably' || video.canPlayType('video/mp4') === 'maybe',
+                    'webm': video.canPlayType('video/webm') === 'probably' || video.canPlayType('video/webm') === 'maybe',
+                    'ogg': video.canPlayType('video/ogg') === 'probably' || video.canPlayType('video/ogg') === 'maybe',
+                    'mov': video.canPlayType('video/quicktime') === 'probably' || video.canPlayType('video/quicktime') === 'maybe',
+                    'avi': video.canPlayType('video/x-msvideo') === 'probably' || video.canPlayType('video/x-msvideo') === 'maybe',
+                    'mkv': video.canPlayType('video/x-matroska') === 'probably' || video.canPlayType('video/x-matroska') === 'maybe',
+                    'flv': video.canPlayType('video/x-flv') === 'probably' || video.canPlayType('video/x-flv') === 'maybe',
+                    'wmv': video.canPlayType('video/x-ms-wmv') === 'probably' || video.canPlayType('video/x-ms-wmv') === 'maybe'
+                };
+            }
+            
+            isBrowserSupported(filename) {
+                const ext = filename.toLowerCase().substring(filename.lastIndexOf('.') + 1);
+                const supported = this.getBrowserSupportedFormats();
+                return supported[ext] || false;
+            }
+            
+            async selectFolder() {
+                try {
+                    const dirHandle = await window.showDirectoryPicker();
+                    this.videoFiles = [];
+                    
+                    for await (const entry of dirHandle.values()) {
+                        if (entry.kind === 'file') {
+                            const file = await entry.getFile();
+                            // Check both MIME type and file extension
+                            if (file.type.startsWith('video/') || this.isVideoFile(file.name)) {
+                                this.videoFiles.push({
+                                    name: file.name,
+                                    file: file
+                                });
+                            }
+                        }
+                    }
+                    
+                    if (this.videoFiles.length === 0) {
+                        this.updateStatus('No video files found in selected folder');
+                        return;
+                    }
+                    
+                    this.videoFiles.sort((a, b) => a.name.localeCompare(b.name));
+                    this.updateVideoList();
+                    this.enableControls();
+                    this.updateStatus(`Found ${this.videoFiles.length} videos`);
+                    
+                    if (this.videoFiles.length > 0) {
+                        await this.playVideo(0);
+                    }
+                    
+                } catch (error) {
+                    this.updateStatus('Error selecting folder: ' + error.message);
+                }
+            }
+            
+            updateVideoList() {
+                this.videoListDiv.innerHTML = '';
+                
+                this.videoFiles.forEach((video, index) => {
+                    const item = document.createElement('div');
+                    const isSupported = this.isBrowserSupported(video.name);
+                    const ext = video.name.toLowerCase().substring(video.name.lastIndexOf('.') + 1);
+                    
+                    item.className = 'playlist-item';
+                    item.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>${video.name}</span>
+                            <span style="font-size: 12px; color: ${isSupported ? '#4CAF50' : '#f44336'};">
+                                ${isSupported ? '✅' : '⚠️'} .${ext}
+                            </span>
+                        </div>
+                    `;
+                    item.addEventListener('click', () => this.playVideo(index));
+                    
+                    if (index === this.currentVideoIndex) {
+                        item.classList.add('active');
+                    }
+                    
+                    this.videoListDiv.appendChild(item);
+                });
+                
+                this.videoCountDiv.textContent = `Total videos: ${this.videoFiles.length}`;
+            }
+            
+            async playVideo(index) {
+                if (index < 0 || index >= this.videoFiles.length) {
+                    return;
+                }
+                
+                this.currentVideoIndex = index;
+                const video = this.videoFiles[index];
+                
+                if (!this.isBrowserSupported(video.name)) {
+                    const ext = video.name.toLowerCase().substring(video.name.lastIndexOf('.') + 1);
+                    if (window.FFmpeg && window.FFmpeg.createFFmpeg && window.FFmpeg.fetchFile) {
+                        await this.transcodeAndPlay(video);
+                        return;
+                    } else {
+                        this.updateStatus(`Unsupported format: .${ext} and VLC-like decoder is not available`);
+                        this.currentVideoDiv.textContent = `Format not supported: ${video.name}`;
+                    }
+                }
+                
+                try {
+                    if (this.currentVideoUrl) {
+                        URL.revokeObjectURL(this.currentVideoUrl);
+                    }
+                    
+                    this.currentVideoUrl = URL.createObjectURL(video.file);
+                    this.videoPlayer.src = this.currentVideoUrl;
+                    
+                    this.currentVideoDiv.textContent = `Now playing: ${video.name}`;
+                    this.updateVideoHighlight();
+                    this.updateStatus(`Playing: ${video.name}`);
+                    
+                    await this.videoPlayer.play();
+                    
+                } catch (error) {
+                    const ext = video.name.toLowerCase().substring(video.name.lastIndexOf('.') + 1);
+                    this.updateStatus(`❌ Cannot play ${ext} format - Convert to MP4 for best results`);
+                    console.error('Video playback error:', error);
+                }
+            }
+
+            async ensureFFmpegLoaded() {
+                if (!window.FFmpeg || !window.FFmpeg.createFFmpeg || !window.FFmpeg.fetchFile) {
+                    this.updateStatus('VLC-like decoder is not available in this browser');
+                    return false;
+                }
+                if (!this.ffmpeg) {
+                    this.ffmpeg = window.FFmpeg.createFFmpeg({ log: true });
+                }
+                if (!this.ffmpeg.isLoaded()) {
+                    this.updateStatus('Loading VLC-like decoder, this can take a moment');
+                    await this.ffmpeg.load();
+                }
+                return true;
+            }
+
+            async transcodeAndPlay(video) {
+                const ready = await this.ensureFFmpegLoaded();
+                if (!ready) {
+                    return;
+                }
+                try {
+                    const { fetchFile } = window.FFmpeg;
+                    this.updateStatus('Transcoding video to MP4 in the browser, please wait');
+                    this.ffmpeg.FS('writeFile', 'input', await fetchFile(video.file));
+                    await this.ffmpeg.run('-i', 'input', '-c:v', 'libx264', '-c:a', 'aac', '-f', 'mp4', 'output.mp4');
+                    const data = this.ffmpeg.FS('readFile', 'output.mp4');
+                    const blob = new Blob([data.buffer], { type: 'video/mp4' });
+                    if (this.currentVideoUrl) {
+                        URL.revokeObjectURL(this.currentVideoUrl);
+                    }
+                    this.currentVideoUrl = URL.createObjectURL(blob);
+                    this.videoPlayer.src = this.currentVideoUrl;
+                    this.currentVideoDiv.textContent = `Now playing (VLC mode): ${video.name}`;
+                    this.updateVideoHighlight();
+                    await this.videoPlayer.play();
+                    this.updateStatus('Playing transcoded video');
+                } catch (error) {
+                    this.updateStatus('Error transcoding video in browser: ' + error.message);
+                }
+            }
+            
+            play() {
+                if (this.videoFiles.length > 0) {
+                    this.videoPlayer.play();
+                    this.updateStatus('Playing');
+                }
+            }
+            
+            pause() {
+                this.videoPlayer.pause();
+                this.updateStatus('Paused');
+            }
+            
+            next() {
+                if (this.videoFiles.length === 0) return;
+                
+                const nextIndex = (this.currentVideoIndex + 1) % this.videoFiles.length;
+                this.playVideo(nextIndex);
+            }
+            
+            prev() {
+                if (this.videoFiles.length === 0) return;
+                
+                const prevIndex = this.currentVideoIndex === 0 ? 
+                    this.videoFiles.length - 1 : this.currentVideoIndex - 1;
+                this.playVideo(prevIndex);
+            }
+            
+            toggleLoop() {
+                this.isLooping = !this.isLooping;
+                this.loopBtn.textContent = this.isLooping ? 'Loop: ON' : 'Loop: OFF';
+                this.updateStatus(this.isLooping ? 'Loop enabled' : 'Loop disabled');
+            }
+            
+            handleVideoEnded() {
+                if (this.isLooping) {
+                    this.next();
+                } else {
+                    this.updateStatus('Video ended');
+                }
+            }
+            
+            handleVideoError(error) {
+                this.updateStatus('Video error: ' + error.message);
+            }
+            
+            updateVideoHighlight() {
+                const items = this.videoListDiv.querySelectorAll('.playlist-item');
+                items.forEach((item, index) => {
+                    item.classList.toggle('active', index === this.currentVideoIndex);
+                });
+            }
+            
+            enableControls() {
+                this.playBtn.disabled = false;
+                this.pauseBtn.disabled = false;
+                this.prevBtn.disabled = false;
+                this.nextBtn.disabled = false;
+                this.loopBtn.disabled = false;
+                this.fullscreenBtn.disabled = false;
+            }
+            
+            toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    this.videoPlayer.requestFullscreen().catch(err => {
+                        this.updateStatus(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+            
+            checkVideoDisplay() {
+                this.updateStatus('Video loaded successfully');
+                
+                // Check if video has visual content
+                setTimeout(() => {
+                    if (this.videoPlayer.videoWidth === 0 || this.videoPlayer.videoHeight === 0) {
+                        const currentVideo = this.videoFiles[this.currentVideoIndex];
+                        const ext = currentVideo.name.toLowerCase().substring(currentVideo.name.lastIndexOf('.') + 1);
+                        this.updateStatus(`⚠️ Video has no visual content - ${ext} format may need conversion to MP4`);
+                        console.warn('Video dimensions are 0x0 - likely audio-only or unsupported codec');
+                    } else {
+                        this.updateStatus(`✅ Video ready: ${this.videoPlayer.videoWidth}x${this.videoPlayer.videoHeight}`);
+                    }
+                }, 1000);
+            }
+            
+            updateStatus(message) {
+                this.statusDiv.textContent = message;
+                console.log(message);
+            }
+        }
+        
+        // Initialize the player when the page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new SimpleVideoPlayer();
+        });
+    </script>
+</body>
+</html>
